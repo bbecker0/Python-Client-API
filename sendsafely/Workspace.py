@@ -2,9 +2,9 @@ import json
 
 import requests
 
-from exceptions import DeleteFileException
+from sendsafely.exceptions import DeleteFileException
 from sendsafely import Package
-from utilities import _generate_keycode, make_headers
+from sendsafely.utilities import _generate_keycode, make_headers
 
 
 class Workspace(Package):
@@ -152,11 +152,31 @@ class Workspace(Package):
                                                    progress_instance=progress_instance)
         return response
 
-    def delete_workspace_file(self, file_name, workspace_directory):
+    def delete_workspace_file_by_name(self, file_name, workspace_path):
         """
         Deletes the file with the specified name from the specified directory
+        :param file_name: Name of the file to delete
+        :param workspace_path: Path of the directory where file_name lives in
         """
-        file_id, directory_id = self._get_file_directory_id(file_name, workspace_directory)
+        file_id, directory_id = self._get_file_directory_id(file_name, workspace_path)
+        if directory_id is None:
+            directory_id = self.root_directory
+
+        endpoint = '/package/' + self.package_id + '/directory/' + directory_id + '/file/' + file_id
+        url = self.sendsafely.BASE_URL + endpoint
+        headers = make_headers(self.sendsafely.API_SECRET, self.sendsafely.API_KEY, endpoint)
+        try:
+            response = requests.delete(url=url, headers=headers).json()
+        except Exception as e:
+            raise DeleteFileException(details=e)
+        if response["response"] != "SUCCESS":
+            raise DeleteFileException(details=response["message"])
+        return response
+
+    def delete_workspace_file_by_id(self, file_id, directory_id):
+        """
+        Deletes the file with the specified file_id the specified directory with directory_id
+        """
         if directory_id is None:
             directory_id = self.root_directory
 
